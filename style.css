@@ -198,6 +198,24 @@ h1 {
   border: 1px solid #93c5fd;
 }
 
+.tag-rockingham {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+}
+
+.tag-peel {
+  background: #fdf2f8;
+  color: #9d174d;
+  border: 1px solid #f9a8d4;
+}
+
+.health-service-line {
+  font-size: 0.8125rem;
+  color: #888;
+  margin-bottom: 0.625rem;
+}
+
 .routing-section {
   padding-top: 0.75rem;
   border-top: 1px solid #f0f0f0;

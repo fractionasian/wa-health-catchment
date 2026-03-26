@@ -4,10 +4,13 @@ const searchInput = document.getElementById('search');
 const suggestionsEl = document.getElementById('suggestions');
 const resultsEl = document.getElementById('results');
 
-const CATCHMENT_NAMES = {
+const HOSPITAL_NAMES = {
   SCGH: 'Sir Charles Gairdner Hospital',
   RPH: 'Royal Perth Hospital',
-  FSH: 'Fiona Stanley Hospital'
+  FSH: 'Fiona Stanley Hospital',
+  RGH: 'Rockingham General Hospital',
+  PHC: 'Peel Health Campus',
+  'SJOG Midland': 'St John of God Midland Public'
 };
 
 const HEALTH_SERVICE_NAMES = {
@@ -148,8 +151,8 @@ function showResults(entries, highlightSuburb) {
   const postcodes = [...new Set(entries.map(e => e.postcode))];
 
   if (postcodes.length === 1) {
-    const catchments = [...new Set(entries.map(e => e.catchment).filter(Boolean))];
-    if (catchments.length > 1) {
+    const medOncs = [...new Set(entries.map(e => e.publicMedOnc).filter(Boolean))];
+    if (medOncs.length > 1) {
       const notice = createEl('div', 'split-notice');
       notice.textContent = 'Postcode ' + postcodes[0] + ' is split between catchments \u2014 routing depends on suburb.';
       resultsEl.appendChild(notice);
@@ -183,12 +186,6 @@ function createEl(tag, className) {
 
 function renderCard(entry, highlighted) {
   const cssClass = entry.healthService ? entry.healthService.toLowerCase() : 'regional';
-  const catchmentName = entry.catchment
-    ? CATCHMENT_NAMES[entry.catchment] + ' (' + entry.catchment + ')'
-    : 'Regional \u2014 not in metro tertiary catchment';
-  const hsName = entry.healthService
-    ? HEALTH_SERVICE_NAMES[entry.healthService] + ' (' + entry.healthService + ')'
-    : null;
 
   const card = createEl('div', 'result-card ' + cssClass);
   if (highlighted) card.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.2)';
@@ -203,72 +200,74 @@ function renderCard(entry, highlighted) {
   header.appendChild(postcodeSpan);
   card.appendChild(header);
 
-  // Catchment
-  const catchmentDiv = createEl('div', 'result-catchment');
-  const catchmentLabel = createEl('div', 'catchment-label');
-  catchmentLabel.textContent = 'Public hospital catchment';
-  const catchmentValue = createEl('div', 'catchment-value ' + cssClass);
-  catchmentValue.textContent = catchmentName;
-  catchmentDiv.appendChild(catchmentLabel);
-  catchmentDiv.appendChild(catchmentValue);
-  if (hsName) {
-    const hsDiv = createEl('div');
-    hsDiv.style.fontSize = '0.8125rem';
-    hsDiv.style.color = '#888';
-    hsDiv.style.marginTop = '0.125rem';
-    hsDiv.textContent = hsName;
-    catchmentDiv.appendChild(hsDiv);
+  // Health service context line
+  if (entry.healthService) {
+    const hsDiv = createEl('div', 'health-service-line');
+    hsDiv.textContent = HEALTH_SERVICE_NAMES[entry.healthService] + ' (' + entry.healthService + ')';
+    card.appendChild(hsDiv);
   }
-  card.appendChild(catchmentDiv);
 
   // Tags
   const tags = createEl('div', 'tags');
   let hasTags = false;
 
   if (entry.sjogMidland === 'core') {
-    const tag = createEl('span', 'tag tag-sjog');
-    tag.textContent = 'SJOG Midland Public';
-    tags.appendChild(tag);
-    const iconTag = createEl('span', 'tag tag-icon');
-    iconTag.textContent = 'ICON Midland split-care eligible';
-    tags.appendChild(iconTag);
+    addTag(tags, 'tag-sjog', 'SJOG Midland catchment');
+    addTag(tags, 'tag-icon', 'Split-care eligible');
     hasTags = true;
   } else if (entry.sjogMidland === 'inpatient') {
-    const tag = createEl('span', 'tag tag-sjog-inpatient');
-    tag.textContent = 'SJOG Midland (inpatient only)';
-    tags.appendChild(tag);
+    addTag(tags, 'tag-sjog-inpatient', 'SJOG Midland (inpatient only)');
     hasTags = true;
   } else if (entry.sjogMidland === 'outpatient') {
-    const tag = createEl('span', 'tag tag-sjog-outpatient');
-    tag.textContent = 'SJOG Midland (outpatient only)';
-    tags.appendChild(tag);
+    addTag(tags, 'tag-sjog-outpatient', 'SJOG Midland (outpatient only)');
+    hasTags = true;
+  }
+  if (entry.rockingham) {
+    addTag(tags, 'tag-rockingham', 'Rockingham catchment');
+    hasTags = true;
+  }
+  if (entry.peel) {
+    addTag(tags, 'tag-peel', 'Peel catchment');
     hasTags = true;
   }
 
   if (hasTags) card.appendChild(tags);
 
   // Routing section
-  const routing = getRouting(entry);
-  if (routing) card.appendChild(routing);
+  const routing = createEl('div', 'routing-section');
+  routing.appendChild(buildMedOncBlock(entry));
+  routing.appendChild(buildRadOncBlock(entry));
+  card.appendChild(routing);
 
   return card;
 }
 
-function getRouting(entry) {
-  const section = createEl('div', 'routing-section');
-  const medOnc = getModality(entry, 'medOnc');
-  const radOnc = getModality(entry, 'radOnc');
-
-  if (medOnc) section.appendChild(medOnc);
-  if (radOnc) section.appendChild(radOnc);
-
-  return section.children.length > 0 ? section : null;
+function addTag(container, cls, text) {
+  const tag = createEl('span', 'tag ' + cls);
+  tag.textContent = text;
+  container.appendChild(tag);
 }
 
-function getModality(entry, type) {
-  if (type === 'medOnc') return buildMedOncBlock(entry);
-  if (type === 'radOnc') return buildRadOncBlock(entry);
-  return null;
+function hospitalLabel(code) {
+  if (!code) return 'Not in metro catchment';
+  var name = HOSPITAL_NAMES[code];
+  return name ? name + ' (' + code + ')' : code;
+}
+
+function buildModalityRow(label, value, note) {
+  const row = createEl('div', 'modality-row');
+  const labelEl = createEl('span', 'modality-label');
+  labelEl.textContent = label;
+  const valueEl = createEl('span', 'modality-value');
+  valueEl.textContent = value;
+  if (note) {
+    const noteEl = createEl('span', 'modality-note');
+    noteEl.textContent = ' ' + note;
+    valueEl.appendChild(noteEl);
+  }
+  row.appendChild(labelEl);
+  row.appendChild(valueEl);
+  return row;
 }
 
 function buildMedOncBlock(entry) {
@@ -278,43 +277,25 @@ function buildMedOncBlock(entry) {
   block.appendChild(heading);
 
   // Public line
-  const publicRow = createEl('div', 'modality-row');
-  const publicLabel = createEl('span', 'modality-label');
-  publicLabel.textContent = 'Public:';
-  const publicValue = createEl('span', 'modality-value');
+  var publicText = hospitalLabel(entry.publicMedOnc);
+  var publicNote = null;
 
-  if (entry.sjogMidland === 'core' && entry.healthService === 'EMHS') {
-    publicValue.textContent = 'SJOG Midland Public (co-located with ICON Midland)';
-  } else if (entry.healthService === 'EMHS' && !entry.sjogMidland) {
-    publicValue.textContent = 'RPH';
-    const note = createEl('span', 'modality-note');
-    note.textContent = ' \u2014 not in Midland catchment';
-    publicValue.appendChild(note);
-  } else if (entry.sjogMidland === 'inpatient') {
-    publicValue.textContent = 'SJOG Midland (inpatient only, if relevant services provided)';
-  } else if (entry.sjogMidland === 'outpatient') {
-    publicValue.textContent = 'SJOG Midland (outpatient only)';
-  } else if (entry.catchment === 'SCGH') {
-    publicValue.textContent = 'SCGH';
-  } else if (entry.catchment === 'FSH') {
-    publicValue.textContent = 'FSH';
-  } else {
-    publicValue.textContent = 'Not in metro tertiary catchment';
+  if (entry.sjogMidland === 'core') {
+    publicNote = '\u2014 co-located with ICON Midland';
+  } else if (entry.publicMedOnc === 'RGH' || entry.publicMedOnc === 'PHC') {
+    publicNote = '\u2014 secondary site, tertiary: FSH';
   }
 
-  publicRow.appendChild(publicLabel);
-  publicRow.appendChild(publicValue);
-  block.appendChild(publicRow);
+  block.appendChild(buildModalityRow('Public:', publicText, publicNote));
 
   // Private line
-  const privateRow = createEl('div', 'modality-row');
-  const privateLabel = createEl('span', 'modality-label');
-  privateLabel.textContent = 'Private:';
-  const privateValue = createEl('span', 'modality-value');
-  privateValue.textContent = 'ICON Midland';
-  privateRow.appendChild(privateLabel);
-  privateRow.appendChild(privateValue);
-  block.appendChild(privateRow);
+  if (entry.rockingham) {
+    block.appendChild(buildModalityRow('Private:', 'ICON Rockingham', null));
+  } else if (entry.peel) {
+    block.appendChild(buildModalityRow('Private:', 'GenesisCare Mandurah / ICON Rockingham', '\u2014 TBC'));
+  } else {
+    block.appendChild(buildModalityRow('Private:', 'ICON Midland', null));
+  }
 
   return block;
 }
@@ -325,18 +306,28 @@ function buildRadOncBlock(entry) {
   heading.textContent = 'Radiation Oncology';
   block.appendChild(heading);
 
+  // Public line
+  var publicText = hospitalLabel(entry.publicRT);
+  var publicNote = null;
+
+  if (entry.publicRT === 'RGH' || entry.publicRT === 'PHC') {
+    publicNote = '\u2014 secondary site, tertiary: FSH';
+  } else if (entry.sjogMidland && entry.publicRT === 'SCGH') {
+    publicNote = '\u2014 no public RT at SJOG Midland';
+  }
+
+  if (entry.publicRT) {
+    block.appendChild(buildModalityRow('Public:', publicText, publicNote));
+  }
+
   // Private line
-  const privateRow = createEl('div', 'modality-row');
-  const privateLabel = createEl('span', 'modality-label');
-  privateLabel.textContent = 'Private:';
-  const privateValue = createEl('span', 'modality-value');
-  privateValue.textContent = 'ICON Midland';
-  const note = createEl('span', 'modality-note');
-  note.textContent = ' (bulk bill / schedule fee possible)';
-  privateValue.appendChild(note);
-  privateRow.appendChild(privateLabel);
-  privateRow.appendChild(privateValue);
-  block.appendChild(privateRow);
+  if (entry.rockingham) {
+    block.appendChild(buildModalityRow('Private:', 'ICON Rockingham', null));
+  } else if (entry.peel) {
+    block.appendChild(buildModalityRow('Private:', 'GenesisCare Mandurah / ICON Rockingham', '\u2014 TBC'));
+  } else {
+    block.appendChild(buildModalityRow('Private:', 'ICON Midland', '\u2014 TBC billing'));
+  }
 
   return block;
 }
