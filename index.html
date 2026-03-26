@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WA Health Catchment Lookup</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WA Health Catchment Lookup</h1>
+      <p class="subtitle">Find which public hospital catchment a suburb or postcode falls under</p>
+    </header>
+
+    <div class="search-section">
+      <input
+        type="text"
+        id="search"
+        placeholder="Enter postcode or suburb name..."
+        autocomplete="off"
+        autofocus
+      >
+      <div id="suggestions" class="suggestions hidden"></div>
+    </div>
+
+    <div id="results" class="results"></div>
+
+    <footer>
+      <p>Sources: <a href="https://www.sjog.org.au/midland" target="_blank">SJOG Midland Public</a> catchment &middot; WA DoH Tertiary Catchment Map (May 2016)</p>
+      <p class="disclaimer">This tool is for clinical reference only. Private patients may attend any facility. Catchment boundaries may change — verify with the relevant health service if uncertain.</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
