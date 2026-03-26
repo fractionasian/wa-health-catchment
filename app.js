@@ -247,51 +247,98 @@ function renderCard(entry, highlighted) {
 
   if (hasTags) card.appendChild(tags);
 
-  // Routing notes
-  const notes = getRoutingNotes(entry);
-  if (notes.length > 0) {
-    const notesDiv = createEl('div', 'routing-notes');
-    notes.forEach(text => {
-      const p = createEl('p');
-      // Handle bold text by splitting on ** markers
-      const parts = text.split(/\*\*(.*?)\*\*/);
-      parts.forEach((part, i) => {
-        if (i % 2 === 1) {
-          const strong = document.createElement('strong');
-          strong.textContent = part;
-          p.appendChild(strong);
-        } else {
-          p.appendChild(document.createTextNode(part));
-        }
-      });
-      notesDiv.appendChild(p);
-    });
-    card.appendChild(notesDiv);
-  }
+  // Routing section
+  const routing = getRouting(entry);
+  if (routing) card.appendChild(routing);
 
   return card;
 }
 
-function getRoutingNotes(entry) {
-  const notes = [];
+function getRouting(entry) {
+  const section = createEl('div', 'routing-section');
+  const medOnc = getModality(entry, 'medOnc');
+  const radOnc = getModality(entry, 'radOnc');
+
+  if (medOnc) section.appendChild(medOnc);
+  if (radOnc) section.appendChild(radOnc);
+
+  return section.children.length > 0 ? section : null;
+}
+
+function getModality(entry, type) {
+  if (type === 'medOnc') return buildMedOncBlock(entry);
+  if (type === 'radOnc') return buildRadOncBlock(entry);
+  return null;
+}
+
+function buildMedOncBlock(entry) {
+  const block = createEl('div', 'modality-block');
+  const heading = createEl('div', 'modality-heading');
+  heading.textContent = 'Medical Oncology';
+  block.appendChild(heading);
+
+  // Public line
+  const publicRow = createEl('div', 'modality-row');
+  const publicLabel = createEl('span', 'modality-label');
+  publicLabel.textContent = 'Public:';
+  const publicValue = createEl('span', 'modality-value');
 
   if (entry.sjogMidland === 'core' && entry.healthService === 'EMHS') {
-    notes.push('**Split-care pathway available:** Public med onc at SJOG Midland + private rad onc at ICON Midland (co-located campus).');
-    notes.push('Private rad onc and med onc also available at ICON Midland.');
+    publicValue.textContent = 'SJOG Midland Public (co-located with ICON Midland)';
   } else if (entry.healthService === 'EMHS' && !entry.sjogMidland) {
-    notes.push('Public med onc at RPH (not SJOG Midland \u2014 outside Midland catchment).');
-    notes.push('Private rad onc at ICON Midland available regardless of catchment.');
+    publicValue.textContent = 'RPH';
+    const note = createEl('span', 'modality-note');
+    note.textContent = ' \u2014 not in Midland catchment';
+    publicValue.appendChild(note);
   } else if (entry.sjogMidland === 'inpatient') {
-    notes.push('SJOG Midland inpatient services available if relevant services are provided at the hospital.');
-    notes.push('Private rad onc at ICON Midland available regardless of catchment.');
+    publicValue.textContent = 'SJOG Midland (inpatient only, if relevant services provided)';
   } else if (entry.sjogMidland === 'outpatient') {
-    notes.push('SJOG Midland outpatient services only. Not in metro tertiary catchment.');
-    notes.push('Private rad onc at ICON Midland available regardless of catchment.');
-  } else if (entry.healthService === 'NMHS' || entry.healthService === 'SMHS') {
-    notes.push('Private rad onc at ICON Midland available regardless of catchment.');
+    publicValue.textContent = 'SJOG Midland (outpatient only)';
+  } else if (entry.catchment === 'SCGH') {
+    publicValue.textContent = 'SCGH';
+  } else if (entry.catchment === 'FSH') {
+    publicValue.textContent = 'FSH';
+  } else {
+    publicValue.textContent = 'Not in metro tertiary catchment';
   }
 
-  return notes;
+  publicRow.appendChild(publicLabel);
+  publicRow.appendChild(publicValue);
+  block.appendChild(publicRow);
+
+  // Private line
+  const privateRow = createEl('div', 'modality-row');
+  const privateLabel = createEl('span', 'modality-label');
+  privateLabel.textContent = 'Private:';
+  const privateValue = createEl('span', 'modality-value');
+  privateValue.textContent = 'ICON Midland';
+  privateRow.appendChild(privateLabel);
+  privateRow.appendChild(privateValue);
+  block.appendChild(privateRow);
+
+  return block;
+}
+
+function buildRadOncBlock(entry) {
+  const block = createEl('div', 'modality-block');
+  const heading = createEl('div', 'modality-heading');
+  heading.textContent = 'Radiation Oncology';
+  block.appendChild(heading);
+
+  // Private line
+  const privateRow = createEl('div', 'modality-row');
+  const privateLabel = createEl('span', 'modality-label');
+  privateLabel.textContent = 'Private:';
+  const privateValue = createEl('span', 'modality-value');
+  privateValue.textContent = 'ICON Midland';
+  const note = createEl('span', 'modality-note');
+  note.textContent = ' (bulk bill / schedule fee possible)';
+  privateValue.appendChild(note);
+  privateRow.appendChild(privateLabel);
+  privateRow.appendChild(privateValue);
+  block.appendChild(privateRow);
+
+  return block;
 }
 
 init();
